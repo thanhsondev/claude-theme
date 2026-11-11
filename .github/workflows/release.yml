@@ -1,0 +1,24 @@
+# Day mot tag dang v* (vi du v1.0.1) se tu dong goi file zip va tao release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dong goi zip
+        run: zip -j pixel-themes-claude-desktop.zip pixel-themes-claude-desktop.js 1-bat-devtools.bat bat-devtools.ps1 HUONG-DAN.txt LICENSE
+
+      - name: Tao release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" pixel-themes-claude-desktop.zip --title "Pixel Themes cho Claude Desktop $TAG" --notes-file .github/release-notes.md
