@@ -1,0 +1,104 @@
+﻿PIXEL THEMES CHO CLAUDE DESKTOP (tab Code) - HƯỚNG DẪN CÀI
+==========================================================
+
+Bộ này thêm hình nền pixel động toàn cửa sổ cho app Claude Desktop trên Windows,
+kèm một con bot Claude mini đi lại trên ô chat.
+
+Trong thư mục có:
+  pixel-themes-claude-desktop.js   Script chính.
+  1-bat-devtools.bat               Bật DevTools cho Claude Desktop (bấm đúp để chạy).
+  bat-devtools.ps1                 Phần lệnh mà file .bat ở trên gọi.
+  HUONG-DAN.txt                    File này.
+  LICENSE                          Giấy phép MIT (bản gốc của aqua2409z).
+
+Trang dự án: https://github.com/thanhsondev/claude-theme
+
+Lưu ý trước khi cài
+-------------------
+- Đây là bản tự làm, không phải tính năng chính thức của Claude. Khi app cập nhật,
+  giao diện có thể thay đổi và script có thể hiển thị sai.
+- Script chỉ đổi cách hiển thị trong cửa sổ app. Nó không gửi dữ liệu đi đâu và
+  không đọc nội dung chat. Bạn có thể mở file .js bằng Notepad để tự kiểm tra.
+- Mỗi lần mở lại app phải chạy lại script (xem Bước 3, mất khoảng 5 giây).
+
+
+BƯỚC 1 - Bật DevTools (chỉ làm một lần)
+---------------------------------------
+1. Mở Claude Desktop ít nhất một lần, rồi thoát hẳn app (cả biểu tượng ở khay hệ thống).
+2. Bấm đúp file  1-bat-devtools.bat
+   File này ghi dòng  "allowDevTools": true  vào file developer_settings.json
+   trong thư mục dữ liệu của Claude Desktop. Nó không tải hay sửa gì khác.
+3. Mở lại Claude Desktop.
+
+Làm tay nếu không muốn chạy file .bat: tạo file developer_settings.json với nội dung
+    { "allowDevTools": true }
+trong thư mục  %APPDATA%\Claude  (hoặc trong thư mục con của  %LOCALAPPDATA%\Claude-Data
+nếu máy bạn có thư mục đó), rồi mở lại app.
+
+
+BƯỚC 2 - Chạy script lần đầu
+----------------------------
+1. Trong Claude Desktop, mở tab Code và mở một phiên chat bất kỳ.
+2. Nhấn  Ctrl + Alt + I  để mở DevTools, chọn tab Console.
+3. Mở file pixel-themes-claude-desktop.js bằng Notepad, nhấn Ctrl + A rồi Ctrl + C.
+4. Bấm vào dòng có dấu  >  trong Console rồi nhấn Ctrl + V.
+   Lần đầu Console sẽ chặn dán. Hãy gõ tay đúng dòng chữ nó yêu cầu
+   (thường là:  allow pasting ), nhấn Enter, rồi dán lại.
+5. Nhấn Enter. Console báo "Pixel Themes đã chạy" là xong.
+
+
+BƯỚC 3 - Lưu lại để lần sau chạy nhanh
+--------------------------------------
+1. Trong DevTools, mở tab Sources, chọn Snippets (có thể nằm sau dấu >>).
+2. Bấm "New snippet", đặt tên là  pixel
+3. Dán toàn bộ nội dung file .js vào khung bên phải, nhấn Ctrl + S.
+
+Từ lần sau, mỗi khi mở app:
+   Ctrl + Alt + I  ->  Ctrl + P  ->  gõ  !pixel  ->  Enter
+
+Khi có bản script mới: mở Snippet pixel, thay toàn bộ nội dung bằng bản mới, lưu lại.
+Nếu script cũ đang chạy, gõ  location.reload()  trong Console trước khi chạy bản mới.
+
+
+CÁCH DÙNG
+---------
+- Alt + T (hoặc nút ô vuông màu ở cạnh phải): mở bảng chọn theme. Có 11 theme.
+- Trong bảng chọn có các tuỳ chọn:
+    Làm dịu cột chat    Làm tối/sáng nhẹ vùng sau chữ cho dễ đọc.
+    Chữ rõ nét          Viền tương phản cho chữ và nền đặc cho bong bóng, menu.
+    Bot Claude          Bật/tắt con bot trên ô chat.
+    Chuyển động         Bật/tắt toàn bộ chuyển động.
+    Đứng yên khi Windows tắt hiệu ứng động   (xem mục lỗi bên dưới)
+- Chọn "Tắt" trong bảng để tắt hình nền. Đóng app là mọi thứ trở về như cũ.
+
+
+LỖI THƯỜNG GẶP
+--------------
+Hình nền và bot đứng yên, không chuyển động
+   Nhấn Alt + T, kiểm tra ô "Chuyển động" đang được tick, và ô
+   "Đứng yên khi Windows tắt hiệu ứng động" KHÔNG được tick.
+   Nếu vẫn đứng yên, bạn đang chạy bản script cũ: gõ  location.reload()  trong Console
+   rồi chạy lại bản mới.
+
+Chữ trắng trên nền trắng, hoặc menu khó đọc khi dùng theme tối
+   Vào Settings của Claude Desktop, đổi Appearance sang Dark.
+
+Nhấn Ctrl + Alt + I không thấy gì
+   Bước 1 chưa có tác dụng. Thoát hẳn app (cả ở khay hệ thống) rồi mở lại.
+
+Dán vào Console không ra gì
+   Clipboard đang chứa thứ khác (ví dụ ảnh vừa chụp màn hình). Chép lại file .js rồi dán.
+
+Chạy bản mới mà không thấy gì thay đổi
+   Bản cũ đang chạy sẽ chặn bản mới. Gõ  location.reload()  trong Console, đợi app
+   hiện lại rồi chạy bản mới.
+
+Cần gửi thông tin để nhờ sửa lỗi
+   Gõ dòng sau trong Console, kết quả sẽ được chép vào clipboard:
+       copy(JSON.stringify(__pixelThemes.debug()))
+
+
+GỠ BỎ
+-----
+- Xoá Snippet pixel trong DevTools. Script không cài gì vào máy.
+- Muốn tắt DevTools: xoá file developer_settings.json đã tạo ở Bước 1.
