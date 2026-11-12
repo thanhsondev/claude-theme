@@ -8,6 +8,9 @@ Trong thư mục có:
   pixel-themes-claude-desktop.js   Script chính.
   1-bat-devtools.bat               Bật DevTools cho Claude Desktop (bấm đúp để chạy).
   bat-devtools.ps1                 Phần lệnh mà file .bat ở trên gọi.
+  claude-theme-launcher.ps1        Tự mở app và nạp theme (thay cho Bước 2-3, xem cuối file).
+  custom-themes.js                 Phần thêm mà launcher ghép vào: theme "Code Bốc Lửa",
+                                   mưa code khi Claude đang chạy task.
   HUONG-DAN.txt                    File này.
   LICENSE                          Giấy phép MIT (bản gốc của aqua2409z).
 
@@ -58,6 +61,19 @@ Từ lần sau, mỗi khi mở app:
 
 Khi có bản script mới: mở Snippet pixel, thay toàn bộ nội dung bằng bản mới, lưu lại.
 Nếu script cũ đang chạy, gõ  location.reload()  trong Console trước khi chạy bản mới.
+
+
+CÁCH KHÁC - Tự nạp bằng launcher (không phải dán tay mỗi lần)
+-------------------------------------------------------------
+Làm xong Bước 1 và khởi động lại app một lần. Sau đó tạo shortcut trên Desktop
+(chuột phải Desktop -> New -> Shortcut) với đích:
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<thư mục này>\claude-theme-launcher.ps1"
+Từ giờ mở app bằng shortcut đó. Launcher mở app, mở DevTools, dán theme rồi tự đóng
+DevTools. Lần đầu nó tự gõ  allow pasting.
+Trong khoảng 15 giây launcher chạy, đừng bấm sang cửa sổ khác. Nếu mất focus, launcher
+dừng lại và đóng DevTools. Nhật ký nằm ở  launcher.log  cạnh file script.
+Theme chọn bằng Alt + T được giữ nguyên. Lần đầu chạy, launcher tắt ô "Tự đổi ngày/đêm"
+(ô này làm theme tự nhảy về Sakura/Moonlit).
 
 
 CÁCH DÙNG
