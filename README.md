@@ -29,6 +29,31 @@ Tóm tắt các bước:
 
 Mỗi lần mở lại app phải chạy lại script. Đóng app là mọi thứ trở về như cũ.
 
+## Tự nạp theme mỗi lần mở app (launcher)
+
+`claude-theme-launcher.ps1` làm thay bước 2: mở Claude Desktop (nếu chưa mở), mở DevTools, dán script vào Console, rồi đóng DevTools.
+Theme bạn đã chọn bằng `Alt + T` được giữ nguyên giữa các lần mở.
+
+1. Làm Bước 1 ở trên (bật DevTools) và khởi động lại app một lần.
+2. Tạo shortcut trên Desktop với đích:
+   ```
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "<thư mục>\claude-theme-launcher.ps1"
+   ```
+3. Mở app bằng shortcut này. Lần đầu launcher tự gõ `allow pasting` cho Console.
+
+Trong lúc launcher chạy (khoảng 15 giây) đừng bấm sang cửa sổ khác. Launcher chỉ gõ phím khi cửa sổ đang focus đúng là DevTools của Claude. Nếu mất focus, nó dừng và đóng DevTools lại.
+Nhật ký nằm ở `launcher.log`, cạnh file script.
+
+Tuỳ chọn: `-Random` đổi sang theme ngẫu nhiên mỗi lần mở, `-NoClose` giữ DevTools mở để xem lỗi, `-LoadWait 20` chờ app load lâu hơn trên máy chậm.
+
+### Phần thêm (`custom-themes.js`)
+
+Launcher tự ghép file này vào script chính. Khi dán tay thì phần này không có.
+
+- **Theme "Code Bốc Lửa"** (`/theme lua`): chữ code bốc lên từ lớp than hồng ở đáy, đổi màu trắng, vàng, cam, đỏ rồi tắt.
+- **Mưa code khi Claude đang chạy task:** khi phiên đang mở có nút Dừng, code rơi phủ lên mọi theme, task xong thì tắt dần. Gỡ lỗi: `__pxtRain.force = true` / `false` / `null`.
+- **Tắt "Tự đổi ngày/đêm" một lần:** khi tuỳ chọn này bật, theme bị ép về Sakura hoặc Moonlit mỗi phút. Muốn dùng lại thì tick lại trong `Alt + T`.
+
 ## Cách dùng
 
 - `Alt + T` hoặc nút ô vuông màu ở cạnh phải: mở bảng chọn theme.

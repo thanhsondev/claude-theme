@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Dong goi zip
-        run: zip -j pixel-themes-claude-desktop.zip pixel-themes-claude-desktop.js 1-bat-devtools.bat bat-devtools.ps1 HUONG-DAN.txt LICENSE
+        run: zip -j pixel-themes-claude-desktop.zip pixel-themes-claude-desktop.js custom-themes.js claude-theme-launcher.ps1 1-bat-devtools.bat bat-devtools.ps1 HUONG-DAN.txt LICENSE
 
       - name: Tao release
         env:
