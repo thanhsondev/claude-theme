@@ -6,6 +6,15 @@ Hình nền pixel/ASCII chuyển động toàn cửa sổ cho app Claude Desktop
 2. Thoát hẳn Claude Desktop, bấm đúp `1-bat-devtools.bat`, mở lại app.
 3. Trong app nhấn `Ctrl + Alt + I`, chọn tab Console, dán toàn bộ nội dung `pixel-themes-claude-desktop.js` rồi nhấn Enter.
 
+## Mới trong v1.3.0
+
+- **Ông già Noel tặng quà**: lâu lâu đoàn xe bay xuống đậu cạnh bot, hai bên nói chuyện qua lại, ông thả hộp quà, bot mở quà (giấy màu tung ra) rồi ông chào bay đi.
+- **Cảm xúc trên mặt bot Claude**: mắt, miệng, má hồng đổi theo tâm trạng (vui, thương, ngạc nhiên, buồn ngủ, đang nghĩ, buồn), kèm biểu tượng ♪ ♥ ! ? z bay cạnh đầu. Tự đổi theo tình huống: bị chuột chọc, task xong, đang chạy task, khuya...
+- **Nhà của bot**: nhà gỗ có ống khói bốc khói, cửa sổ sáng đèn và 2 cây thông có đèn ở đầu phải ô chat. Theme Giáng Sinh có tuyết trên mái, dây đèn màu, vòng nguyệt quế. Lâu lâu bot vào nhà nghỉ rồi ra.
+- **Bot Codex**: robot pixel tự vẽ (màn hình `>_`) đi dạo và chơi với bot Claude: nói chuyện, đuổi bắt, đập tay, ném tuyết (theme Giáng Sinh).
+- **Khung lựa chọn cuối lượt chat** có nền đặc, nút phụ nhìn rõ (trước đây bị chìm vào hình nền tối).
+- Ô bật/tắt mới trong `Alt + T`: "Nhà của bot", "Bot Codex".
+
 ## Mới trong v1.2.0
 
 - **Theme "Giáng Sinh"** (`/theme noel`): đêm tuyết, rừng thông giăng đèn nhấp nháy, tuyết rơi 3 lớp (dạt ra khi rê chuột). Xe trượt ông già Noel lượn tự do trên trời, tuần lộc nối đuôi theo vệt đường.
