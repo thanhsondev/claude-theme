@@ -51,6 +51,11 @@ Tuỳ chọn: `-Random` đổi sang theme ngẫu nhiên mỗi lần mở, `-NoCl
 Launcher tự ghép file này vào script chính. Khi dán tay thì phần này không có.
 
 - **Theme "Code Bốc Lửa"** (`/theme lua`): chữ code bốc lên từ lớp than hồng ở đáy, đổi màu trắng, vàng, cam, đỏ rồi tắt.
+- **Theme "Giáng Sinh"** (`/theme noel`): đêm tuyết, rừng thông giăng đèn nhấp nháy, tuyết rơi 3 lớp (dạt ra khi rê chuột). Xe trượt ông già Noel lượn tự do trên trời, tuần lộc nối đuôi nhau theo vệt đường. Lâu lâu ông già Noel hô "hô hô hô" và chuông reng, dùng tiếng thật CC0 trong `sounds/` (xem `sounds/NGUON.txt`). Bot Claude đội nón Noel. Có nhạc nền tự tổng hợp (Jingle Bells, We Wish You a Merry Christmas), bật/tắt bằng ô "Nhạc & tiếng Giáng Sinh" trong `Alt + T`.
+- **Nhạc 8-bit 5 bài** (Jingle Bells, We Wish You a Merry Christmas, Deck the Halls, Silent Night, Joy to the World): hàng "Nhạc:" trong `Alt + T` để chọn bài hoặc phát lần lượt, nút "Bài sau", thanh âm lượng.
+- **Tuyết đọng trên ô chat:** tuyết rơi đọng thành đống trên mép ô nhập chat; dày quá thì bot vác chổi ra quét sạch.
+- **Nền tối sau chữ:** dải nền tối mờ sau cột chữ cho dễ đọc; mưa code nằm dưới dải này. Chỉnh độ đậm trong `Alt + T`.
+- **Bot đi tự do và biết nói:** bot đi khắp cửa sổ, lâu lâu nói một câu trong bong bóng thoại (khi Claude bắt đầu hoặc làm xong task, khi bị chuột chọc, khi khuya...). Tắt bằng ô "Bot đi tự do" / "Bot nói chuyện" trong `Alt + T`.
 - **Mưa code khi Claude đang chạy task:** khi phiên đang mở có nút Dừng, code rơi phủ lên mọi theme, task xong thì tắt dần. Gỡ lỗi: `__pxtRain.force = true` / `false` / `null`.
 - **Tắt "Tự đổi ngày/đêm" một lần:** khi tuỳ chọn này bật, theme bị ép về Sakura hoặc Moonlit mỗi phút. Muốn dùng lại thì tick lại trong `Alt + T`.
 

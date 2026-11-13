@@ -10,7 +10,10 @@ Trong thư mục có:
   bat-devtools.ps1                 Phần lệnh mà file .bat ở trên gọi.
   claude-theme-launcher.ps1        Tự mở app và nạp theme (thay cho Bước 2-3, xem cuối file).
   custom-themes.js                 Phần thêm mà launcher ghép vào: theme "Code Bốc Lửa",
-                                   mưa code khi Claude đang chạy task.
+                                   theme "Giáng Sinh", mưa code khi Claude đang chạy task,
+                                   bot đi tự do/biết nói, nền tối sau chữ.
+  sounds\                          Tiếng ông già Noel hô và tiếng chuông (CC0, xem NGUON.txt).
+                                   Để nguyên thư mục này cạnh launcher.
   HUONG-DAN.txt                    File này.
   LICENSE                          Giấy phép MIT (bản gốc của aqua2409z).
 

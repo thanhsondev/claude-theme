@@ -1,0 +1,10 @@
+Am thanh that dung trong theme Giang Sinh (custom-themes.js)
+=============================================================
+Nguon: BigSoundBank - Joseph Sardin - https://bigsoundbank.com
+Giay phep: CC0 (public domain) - "Free and royalty-free"
+
+ho1.ogg .. ho5.ogg   "Santa Claus, Oh Oh Oh" #1..#5 (so 2074..2078), da cat khoang lang, chuan hoa -3 dB
+chuong1.ogg          "Bells of Santa Claus #1" (so 0585), doan 0.06 s - 3.06 s, fade ra 0.6 s
+chuong2.ogg          "Bells of Santa Claus #1" (so 0585), doan 16.92 s - 19.92 s, fade ra 0.6 s
+
+Launcher nhung cac file .ogg trong thu muc nay vao script duoi dang base64 (bien PXT_SOUNDS).

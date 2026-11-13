@@ -170,7 +170,18 @@ $Custom = Join-Path $PSScriptRoot 'custom-themes.js'
 $Anchor = 'const ITEMS = THEMES.map('
 if (Test-Path $Custom) {
   $at = $code.IndexOf($Anchor)
-  if ($at -ge 0) { $code = $code.Insert($at, [IO.File]::ReadAllText($Custom, [Text.Encoding]::UTF8) + "`n  ") }
+  if ($at -ge 0) {
+    # Am thanh that (sounds\*.ogg) nhung thanh base64: const PXT_SOUNDS = { ho1: '...', chuong1: '...' };
+    $snd = @()
+    $SndDir = Join-Path $PSScriptRoot 'sounds'
+    if (Test-Path $SndDir) {
+      foreach ($f in Get-ChildItem $SndDir -Filter *.ogg -File) {
+        $snd += "$($f.BaseName): '$([Convert]::ToBase64String([IO.File]::ReadAllBytes($f.FullName)))'"
+      }
+    }
+    $sndJs = "const PXT_SOUNDS = { $($snd -join ', ') };`n  "
+    $code = $code.Insert($at, $sndJs + [IO.File]::ReadAllText($Custom, [Text.Encoding]::UTF8) + "`n  ")
+  }
   else { Log "khong thay '$Anchor' trong script (ban moi doi cau truc?) -> bo qua custom-themes.js" }
 }
 if ($Random) {
