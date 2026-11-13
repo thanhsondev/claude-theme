@@ -1634,3 +1634,28 @@
       /* bỏ qua */
     }
   };
+
+  /* ------------------------------- custom: khung lựa chọn (Hành động tiếp theo) rõ ràng */
+  // Khung chứa nút trả lời nhanh / nút duyệt ở cuối lượt chat bị máy quét làm trong suốt, nút phụ
+  // (nền xám rất mờ) chìm vào hình nền tối. Trả lại nền đặc bo góc cho khung, nút phụ có nền + viền.
+  const CHOICE_CSS = `
+html[data-pxt-on] [data-turn-next], html[data-pxt-on] [data-inline-approval-slot] [data-approval-card-root] {
+  background-color: rgb(var(--pxt-card)) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 0 0 1px rgba(var(--pxt-edge), .18), 0 10px 28px rgba(0, 0, 0, .35) !important;
+  text-shadow: none !important;
+}
+html[data-pxt-on] [data-turn-next] button[data-cds="Button"], html[data-pxt-on] [data-approval-card-root] button[data-cds="Button"] {
+  background-color: rgba(var(--pxt-edge), .12) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--pxt-edge), .32) !important;
+  text-shadow: none !important;
+}
+html[data-pxt-on] [data-turn-next] button[data-cds="Button"]:hover, html[data-pxt-on] [data-approval-card-root] button[data-cds="Button"]:hover {
+  background-color: rgba(var(--pxt-edge), .22) !important;
+}
+`;
+  try {
+    sheet(CHOICE_CSS, document);
+  } catch (e) {
+    console.warn('[Pixel Themes] khong them duoc CSS khung lua chon:', e);
+  }
