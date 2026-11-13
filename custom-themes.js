@@ -384,7 +384,11 @@
     if (w.fx) {
       const ms = w.mouse;
       sl.wt = (sl.wt || 0) + dt;
-      if (Math.hypot(sl.wx - sl.x, sl.wy - sl.y) < 5 || sl.wt > 9 || sl.wx > xMax + 2 || sl.wy > yMax + 2) {
+      if (GIFT.target) {
+        sl.wx = GIFT.target.x;
+        sl.wy = GIFT.target.y;
+        sl.wt = 0;
+      } else if (Math.hypot(sl.wx - sl.x, sl.wy - sl.y) < 5 || sl.wt > 9 || sl.wx > xMax + 2 || sl.wy > yMax + 2) {
         sl.wt = 0;
         if (ms && ms.active && Math.random() < 0.25) {
           sl.wx = clamp(ms.x, xMin, xMax);
@@ -397,10 +401,13 @@
       const want = Math.atan2(sl.wy - sl.y, sl.wx - sl.x);
       const da = ((((want - sl.a) % 6.2832) + 9.4248) % 6.2832) - 3.1416;
       sl.a += clamp(da, -1.5 * dt, 1.5 * dt);
-      const v = clamp(C / 11, 6, 13) * (cfg.speed || 1);
-      sl.x += Math.cos(sl.a) * v * dt;
-      sl.y += Math.sin(sl.a) * v * dt * 0.75;
-      sl.path.push({ x: sl.x, y: sl.y });
+      let v = clamp(C / 11, 6, 13) * (cfg.speed || 1);
+      if (GIFT.target) v *= clamp(Math.hypot(sl.wx - sl.x, sl.wy - sl.y) / 10, 0.4, 1);
+      if (!GIFT.hold) {
+        sl.x += Math.cos(sl.a) * v * dt;
+        sl.y += Math.sin(sl.a) * v * dt * 0.75;
+        sl.path.push({ x: sl.x, y: sl.y });
+      }
     }
     // Độ dài cộng dồn tính từ đầu đàn ra sau; cắt bỏ phần vệt đã quá dài.
     const P = sl.path;
@@ -450,12 +457,14 @@
     w.glow(sx + 5, sy + 4, 7, '#ffd9a0', 0.2);
     w.sprite(XM_SLEIGH, sx, sy, { flip: sf < 0 });
     const onScreen = sx > 0 && sx + XM_SLEIGH.w < C && sy > 2 && sy < R;
-    if (w.fx) {
+    xmGiftSanta(w, sl, dt, { sp, sx, sy, sf, DS, C, R });
+    if (w.fx && GIFT.state === 'wait') {
       sl.hoT -= dt;
       sl.bellT -= dt;
       if (sl.hoT <= 0 && onScreen && !xmSfxBusy()) {
         sl.hoT = rnd(20, 45);
         sl.sayT = 2.6;
+        sl.sayText = 'Hô hô hô!';
         sl.bellT = Math.max(sl.bellT, 4);
         xmSfx('ho');
         BOT_TALK.reply = 1.8; // bot Claude hô theo
@@ -468,7 +477,7 @@
     if (sl.sayT > 0) {
       sl.sayT -= dt;
       const cell = w.cell;
-      xmBubble(w, (sx + (sf < 0 ? 4.5 : 5.5)) * cell, sy * cell - 2, 'Hô hô hô!', Math.min(1, sl.sayT / 0.4));
+      xmBubble(w, (sx + (sf < 0 ? 4.5 : 5.5)) * cell, sy * cell - 2, sl.sayText || 'Hô hô hô!', Math.min(1, sl.sayT / 0.4));
     }
     // Bụi sao rắc ra sau xe.
     if (w.fx && Math.random() < 0.7) {
@@ -634,12 +643,29 @@
     const my = mouse.y;
     const near = mouse.active && Math.abs(mx - (FB.x + W / 2)) < W && Math.abs(my - (FB.y + H / 2)) < H * 1.5;
     const sweeping = FB.mode === 'sweep' || FB.next === 'sweep';
-    if ((bot.poke || near) && FB.mode !== 'hop' && !sweeping) {
+    if ((bot.poke || near) && FB.mode !== 'hop' && FB.mode !== 'inside' && !sweeping) {
       FB.mode = 'hop';
       FB.hopT = 0;
     }
     bot.poke = false;
     FB.timer -= dt;
+    // Ở trong nhà: không vẽ bot. Ra khi hết giờ, khi ông già Noel tới, khi tuyết cần quét.
+    if (FB.mode === 'inside') {
+      FB.insideT -= dt;
+      if (!HOUSE.on || FB.insideT <= 0 || GIFT.state !== 'wait' || PILE.need) {
+        FB.mode = 'idle';
+        FB.timer = rnd(1.5, 3);
+        FB.perch = true;
+        FB.x = HOUSE.doorX - W / 2;
+        FB.y = perchY;
+        HOUSE.doorT = 0.8;
+        bot.look = -1;
+        botEmo(pick(['happy', 'surprised', 'love']), 2);
+      } else {
+        bot.x = FB.x;
+        return;
+      }
+    }
     // Tuyết đọng dày trên ô chat -> vác chổi ra đầu trái ô chat rồi quét sang phải.
     if (PILE.need && b && !sweeping && FB.mode !== 'hop') {
       FB.mode = 'walk';
@@ -649,13 +675,29 @@
       FB.ty = perchY;
       try {
         botSay('Để tui quét tuyết!', 2.5);
+        botEmo('think', 2.5);
       } catch (e) {
         /* chưa có phần nói chuyện */
       }
     }
+    if (GIFT.lock && FB.mode !== 'sweep' && FB.next !== 'sweep') {
+      if (FB.mode === 'walk') {
+        FB.mode = 'idle';
+        FB.next = null;
+      }
+      FB.timer = 1;
+    }
     if (FB.mode === 'idle' && FB.timer <= 0) {
       const r = Math.random();
-      if (r < 0.45) {
+      const sleepy = emoNow() === 'sleepy';
+      if (HOUSE.on && b && !GIFT.lock && Math.random() < (sleepy ? 0.4 : 0.12)) {
+        // Về nhà nghỉ một lát.
+        FB.mode = 'walk';
+        FB.next = 'home';
+        FB.perch = true;
+        FB.tx = HOUSE.doorX - W / 2;
+        FB.ty = perchY;
+      } else if (r < 0.45) {
         FB.mode = 'walk';
         FB.perch = false;
         FB.tx = rnd(minX, maxX);
@@ -696,7 +738,11 @@
       if (dist <= v) {
         FB.x = FB.tx;
         FB.y = FB.ty;
-        FB.mode = FB.next === 'sweep' ? 'sweep' : 'idle';
+        FB.mode = FB.next === 'sweep' ? 'sweep' : FB.next === 'home' && HOUSE.on ? 'inside' : 'idle';
+        if (FB.mode === 'inside') {
+          FB.insideT = emoNow() === 'sleepy' ? rnd(20, 40) : rnd(6, 16);
+          HOUSE.doorT = 0.8;
+        }
         FB.next = null;
       } else {
         FB.x += (dx / dist) * v;
@@ -716,13 +762,14 @@
       FB.step += dt;
       rows = Math.floor(FB.step / 0.22) % 2 ? BOT_ROWS.walkB : BOT_ROWS.walkA;
       if (b) xmPileSweep(b.left - 10, FB.x + W + bs * 3.5, dt);
-      if (!b || FB.x >= b.right - W - 12) {
+      if (!b || FB.x >= (HOUSE.on ? HOUSE.left - W * 0.6 : b.right - W - 12)) {
         if (b) xmPileSweep(b.left - 10, b.right + 10, 99);
         FB.mode = 'idle';
         FB.timer = rnd(2, 4);
         PILE.need = false;
         try {
           botSay(pick(['Sạch bóng!', 'Xong, sạch trơn!', 'Gọn gàng chưa?']), 2.5);
+          botEmo('happy', 2.5);
         } catch (e) {
           /* chưa có phần nói chuyện */
         }
@@ -735,7 +782,8 @@
       if (FB.hopT >= T) FB.mode = 'idle';
     } else {
       lift = (Math.sin(w.t * 3) + 1) * 0.6;
-      if (mouse.active) bot.look = mx > FB.x + W / 2 ? 1 : -1;
+      if (GIFT.lock && GIFT.santaPx != null) bot.look = GIFT.santaPx > FB.x + W / 2 ? 1 : -1;
+      else if (mouse.active) bot.look = mx > FB.x + W / 2 ? 1 : -1;
     }
     FB.x = clamp(FB.x, minX, maxX);
     FB.y = clamp(FB.y, minY, Math.max(maxY, perchY));
@@ -762,14 +810,7 @@
         w.tileAt(x0 + i * bs, y0 + j * bs, bs, p[0], p[1], 'tS%$'[(i * 3 + j + flick) % 4]);
       }
     }
-    const ey = y0 + bs;
-    for (const c of [3, 7]) {
-      const ex = x0 + (c + bot.look) * bs;
-      if (blinking) {
-        ctx.fillStyle = BOT_PAL.e[0];
-        ctx.fillRect(ex + bs * 0.15, ey + bs * 0.45, bs * 0.7, bs * 0.18);
-      } else w.tileAt(ex, ey, bs, BOT_PAL.e[0], null, '');
-    }
+    botEyes(w, x0, y0, bs, blinking);
     // Cây chổi: lúc vác đi thì dựng đứng sau lưng, lúc quét thì chĩa xuống trước mặt và đưa qua lại.
     if (FB.mode === 'sweep' || FB.next === 'sweep') xmBroom(w, x0, y0, bs, FB.mode === 'sweep', bot.look);
   };
@@ -1323,16 +1364,26 @@
     } finally {
       delete w.tileAt;
     }
+    BOTPOS.ok = y0 != null;
+    if (y0 != null) Object.assign(BOTPOS, { x0, x1, y0, bs, at: performance.now() });
+    EMO.t -= dt;
+    if (y0 != null) botEmote(w, dt, x0, x1, y0, bs);
     if (y0 == null || cfg.botTalk === false) return;
     const T = BOT_TALK;
     T.t -= dt;
     T.cool -= dt;
+    if (GIFT.lock) {
+      // Đang nói chuyện với ông già Noel: không chen câu khác vào.
+      T.t = Math.max(T.t, 8);
+      T.cool = Math.max(T.cool, 1);
+    }
     // Sự kiện: Claude bắt đầu / làm xong task (cùng tín hiệu với mưa code).
     const busy = !!RAIN.on;
     if (busy !== T.busy) {
       T.busy = busy;
       if (T.cool <= 0) {
         botSay(botPick(busy ? 'start' : 'done'));
+        botEmo(busy ? 'surprised' : 'happy', busy ? 1.6 : 3);
         T.cool = 5;
         T.t = rnd(20, 40);
       }
@@ -1341,12 +1392,16 @@
     const near = mouse.active && mouse.x > x0 - bs && mouse.x < x1 + bs * 2 && mouse.y > y0 - bs && mouse.y < y0 + bs * 6;
     if (near && T.cool <= 0 && T.sayT <= 0 && Math.random() < 0.5) {
       botSay(botPick('poke'), 2);
+      botEmo(pick(['surprised', 'happy', 'love']), 2);
       T.cool = 8;
     }
     // Hô theo ông già Noel.
     if (T.reply > 0) {
       T.reply -= dt;
-      if (T.reply <= 0 && curId === 'xmas' && Math.random() < 0.6) botSay('Hô hô hô!', 2.2);
+      if (T.reply <= 0 && curId === 'xmas' && Math.random() < 0.6) {
+        botSay('Hô hô hô!', 2.2);
+        botEmo('happy', 2.2);
+      }
     }
     // Lâu lâu nói 1 câu.
     if (T.t <= 0) {
@@ -1359,6 +1414,8 @@
         else if ((h >= 23 || h < 5) && r < 0.5) kind = 'night';
         else if (curId === 'xmas' && r < 0.55) kind = 'xmas';
         botSay(botPick(kind));
+        const emoOf = { busy: 'think', night: 'sleepy', xmas: 'happy', idle: pick(['happy', 'happy', 'love', 'think']) };
+        botEmo(emoOf[kind], 3);
       }
     }
     if (T.sayT > 0) {
@@ -1516,14 +1573,14 @@
       PILE.need = false;
       return;
     }
-    const n = Math.max(8, Math.round(b.width / PILE.slot));
+    const n = Math.max(8, Math.round(((HOUSE.on ? Math.max(b.left + 40, HOUSE.left - 4) : b.right) - b.left) / PILE.slot));
     if (!PILE.h || PILE.h.length !== n) {
       const old = PILE.h;
       PILE.h = new Float32Array(n);
       if (old) for (let i = 0; i < n; i++) PILE.h[i] = old[Math.floor((i * old.length) / n)];
     }
     PILE.left = b.left;
-    PILE.width = b.width;
+    PILE.width = (HOUSE.on ? Math.max(b.left + 40, HOUSE.left - 4) : b.right) - b.left;
     PILE.top = b.top;
     PILE.max = clamp(w.cell * 3, 30, 48);
     const H = PILE.h;
@@ -1618,8 +1675,12 @@
 
   const _botFramePile = botFrame;
   botFrame = function (w, dt) {
+    houseLayout(w);
+    houseDraw(w, dt); // nhà + cây thông vẽ trước, bot đi ngang phía trước
     xmPileDraw(w); // đống tuyết vẽ trước, bot đứng lên/lội trong tuyết
     _botFramePile(w, dt);
+    cxFrame(w, dt); // bot Codex + trò chơi chung
+    xmGiftDraw(w, dt); // hộp quà rơi + giấy màu
     xmPuffs(w, dt); // tuyết văng vẽ sau cùng
   };
 
@@ -1659,3 +1720,896 @@ html[data-pxt-on] [data-turn-next] button[data-cds="Button"]:hover, html[data-px
   } catch (e) {
     console.warn('[Pixel Themes] khong them duoc CSS khung lua chon:', e);
   }
+
+  /* ------------------------------------------ custom: cảm xúc trên mặt bot Claude */
+  // Mắt + miệng + má hồng đổi theo tâm trạng, kèm biểu tượng nhỏ bay cạnh đầu:
+  //   happy (^ ^, cười, ♪)   love (mắt tim, ♥)   surprised (mắt to, miệng "o", !)
+  //   sleepy (- -, z Z)       think (mắt liếc lên, ?)   sad (giọt nước mắt, …)
+  // Không có cảm xúc nào đang bật thì: đang chạy task -> tập trung; khuya / lâu không đụng chuột -> buồn ngủ.
+  const EMO = { kind: '', t: 0, ph: 0 };
+  window.__pxtEmo = (k, d = 4) => botEmo(k, d); // gỡ lỗi: __pxtEmo('love')
+  function botEmo(kind, dur = 2.5) {
+    EMO.kind = kind;
+    EMO.t = dur;
+  }
+  function emoNow() {
+    if (EMO.t > 0) return EMO.kind;
+    const idle = mouse.last && performance.now() - mouse.last > 90000;
+    const hr = new Date().getHours();
+    if (RAIN.on) return 'focus';
+    if (idle || hr >= 23 || hr < 5) return 'sleepy';
+    return '';
+  }
+  function heart(ctx, cx, cy, sz, col) {
+    const r = sz * 0.28;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(cx - r, cy - r * 0.4, r, Math.PI, 0);
+    ctx.arc(cx + r, cy - r * 0.4, r, Math.PI, 0);
+    ctx.lineTo(cx, cy + sz * 0.5);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Vẽ mắt + miệng + má hồng (thay cho mắt gốc) ở chế độ bot đi tự do.
+  function botEyes(w, x0, y0, bs, blinking) {
+    const ctx = w.ctx;
+    const k = emoNow();
+    const E = BOT_PAL.e[0];
+    const lk = bot.look || 0;
+    const ey = y0 + bs;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = E;
+    ctx.fillStyle = E;
+    for (const c of [3, 7]) {
+      const ex = x0 + (c + lk) * bs;
+      if (k === 'love') {
+        heart(ctx, ex + bs / 2, ey + bs * 0.45, bs * 1.05, '#ff3d6e');
+      } else if (k === 'happy') {
+        ctx.lineWidth = bs * 0.22;
+        ctx.beginPath();
+        ctx.moveTo(ex + bs * 0.12, ey + bs * 0.7);
+        ctx.lineTo(ex + bs * 0.5, ey + bs * 0.28);
+        ctx.lineTo(ex + bs * 0.88, ey + bs * 0.7);
+        ctx.stroke();
+      } else if (k === 'sleepy' || blinking) {
+        ctx.fillRect(ex + bs * 0.12, ey + bs * 0.5, bs * 0.76, bs * 0.18);
+      } else if (k === 'surprised') {
+        ctx.fillRect(ex - bs * 0.12, ey - bs * 0.15, bs * 1.24, bs * 1.25);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(ex + bs * 0.55, ey + bs * 0.05, bs * 0.3, bs * 0.3);
+        ctx.fillStyle = E;
+      } else if (k === 'think') {
+        ctx.fillRect(ex + bs * 0.15, ey - bs * 0.05, bs * 0.7, bs * 0.6);
+      } else {
+        w.tileAt(ex, ey, bs, E, null, '');
+        if (k === 'sad') {
+          ctx.fillStyle = '#8fd0ff';
+          ctx.beginPath();
+          ctx.arc(ex + bs * 0.5, ey + bs * 1.45 + ((w.t * 18) % (bs * 0.8)), bs * 0.18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = E;
+        }
+      }
+    }
+    // Má hồng khi vui / thương.
+    if (k === 'happy' || k === 'love') {
+      ctx.fillStyle = 'rgba(255, 110, 140, 0.75)';
+      for (const c of [2, 8]) ctx.fillRect(x0 + (c + lk) * bs + bs * 0.1, ey + bs * 1.05, bs * 0.8, bs * 0.32);
+    }
+    // Miệng (hàng thứ 3 của thân, giữa hai mắt).
+    const mx = x0 + (5.5 + lk * 0.6) * bs;
+    const my = y0 + bs * 2.35;
+    ctx.strokeStyle = E;
+    ctx.fillStyle = E;
+    ctx.lineWidth = bs * 0.2;
+    if (k === 'happy' || k === 'love') {
+      ctx.beginPath();
+      ctx.arc(mx, my - bs * 0.3, bs * 0.55, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.stroke();
+    } else if (k === 'surprised') {
+      ctx.beginPath();
+      ctx.ellipse(mx, my + bs * 0.1, bs * 0.28, bs * 0.36, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (k === 'sad') {
+      ctx.beginPath();
+      ctx.arc(mx, my + bs * 0.45, bs * 0.45, 1.2 * Math.PI, 1.8 * Math.PI);
+      ctx.stroke();
+    } else if (k === 'sleepy') {
+      ctx.beginPath();
+      ctx.ellipse(mx, my + bs * 0.05, bs * 0.18, bs * 0.12 + Math.abs(Math.sin(w.t * 1.5)) * bs * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (k === 'think' || k === 'focus') {
+      ctx.beginPath();
+      ctx.moveTo(mx - bs * 0.25, my + bs * 0.05);
+      ctx.lineTo(mx + bs * 0.35, my - bs * 0.05);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // Biểu tượng nhỏ bay lên cạnh đầu bot (vẽ cho cả chế độ bot đứng yên trên ô chat).
+  const EMOTES = { happy: ['♪', '#fff3b0'], love: ['♥', '#ff4d7a'], surprised: ['!', '#ffd34d'], sleepy: ['z', '#bfe3ff'], think: ['?', '#ffffff'], sad: ['…', '#bfe3ff'] };
+  function botEmote(w, dt, x0, x1, y0, bs) {
+    const k = emoNow();
+    const em = EMOTES[k];
+    EMO.ph += dt;
+    if (!em) return;
+    const ctx = w.ctx;
+    const bx = x1 + bs * 1.8;
+    const by = y0 + bs * 0.3;
+    const fs = Math.round(bs * 1.5);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.fillStyle = em[1];
+    const n = k === 'surprised' || k === 'think' ? 1 : 2;
+    for (let i = 0; i < n; i++) {
+      let ph = (EMO.ph * 0.55 + i * 0.5) % 1;
+      let x = bx + ph * bs * 1.2 + Math.sin(EMO.ph * 4 + i) * bs * 0.2;
+      let y = by - ph * bs * 3;
+      let a = 1 - ph;
+      let size = fs * (0.75 + ph * 0.45);
+      if (n === 1) {
+        // "!" và "?" đứng yên, nảy nhẹ.
+        ph = 0;
+        x = bx;
+        y = by - bs * 0.6 - Math.abs(Math.sin(EMO.ph * 6)) * bs * 0.35;
+        a = 1;
+        size = fs * 1.1;
+      }
+      const ch = k === 'sleepy' ? (i ? 'Z' : 'z') : em[0];
+      ctx.globalAlpha = clamp(a, 0, 1);
+      ctx.font = `800 ${Math.round(size)}px ${FONT}`;
+      ctx.strokeText(ch, x, y);
+      ctx.fillText(ch, x, y);
+    }
+    ctx.restore();
+  }
+
+  /* ------------------------------------ custom: ông già Noel bay xuống tặng quà */
+  // Lâu lâu (lần đầu sau ~1 phút, sau đó 2-4 phút) đoàn xe bay tới đậu cạnh bot. Hai bên nói
+  // qua lại, ông thả hộp quà rơi xuống cạnh bot, bot nhảy cẫng lên rồi mở quà (giấy màu tung ra),
+  // rồi ông chào và bay đi. Gỡ lỗi: __pxtGift.t = 0 -> ghé ngay.
+  const BOTPOS = { ok: false, x0: 0, x1: 0, y0: 0, bs: 10, at: 0 };
+  const GIFT_SCRIPTS = [
+    [
+      ['s', 'Hô hô hô! Chào bot nhỏ!'],
+      ['b', 'Ông già Noel! Con chào ông ạ!', 'love'],
+      ['s', 'Năm nay con code chăm lắm, quà nè!'],
+      ['drop'],
+      ['b', 'Woa! Con cảm ơn ông nhiều!', 'happy'],
+      ['open'],
+      ['s', 'Giáng Sinh vui vẻ nha! Hô hô hô!'],
+      ['b', 'Ông đi cẩn thận nha!', 'happy'],
+    ],
+    [
+      ['s', 'Bot ơi! Năm nay có ngoan không?'],
+      ['b', 'Dạ có! Con fix bug cả năm luôn!', 'happy'],
+      ['s', 'Giỏi lắm! Thưởng con hộp quà nè!'],
+      ['drop'],
+      ['b', 'Hihi, con mở liền nha!', 'love'],
+      ['open'],
+      ['s', 'Hô hô hô! Hẹn gặp lại con!'],
+      ['b', 'Tạm biệt ông!', 'sad'],
+    ],
+    [
+      ['s', 'Hô hô hô! Lạnh không con?'],
+      ['b', 'Lạnh xíu, mà có nón ông tặng rồi!', 'happy'],
+      ['s', 'Thêm món quà cho ấm nè!'],
+      ['drop'],
+      ['b', 'Quà gì vậy ông?', 'think'],
+      ['s', 'Mở ra là biết! Hô hô hô!'],
+      ['open'],
+      ['b', 'Con thương ông nhất!', 'love'],
+    ],
+  ];
+  const GIFT_ITEMS = ['Bàn phím cơ mới!', 'Ly cà phê nóng!', 'Một năm không bug!', 'Thêm 1 triệu token!', 'Áo len đỏ nè!', 'Kẹo gậy Noel!', 'Ổ SSD 4TB!', 'Con mèo bông!', 'Vé nghỉ phép 1 tuần!'];
+  const GIFT = { state: 'wait', t: rnd(50, 80), step: 0, stepT: 0, script: null, target: null, hold: false, lock: false, box: null, conf: [], appT: 0, item: '', dir: 1, side: 1, santaPx: null };
+  window.__pxtGift = GIFT;
+
+  function xmGiftEnd() {
+    GIFT.state = 'wait';
+    GIFT.t = rnd(120, 240);
+    GIFT.lock = false;
+    GIFT.hold = false;
+    GIFT.target = null;
+    GIFT.santaPx = null;
+    GIFT.box = null;
+  }
+
+  // Chạy trong khung vẽ xe trượt (đơn vị ô lưới). g = { sp, sx, sy, sf, DS, C, R }.
+  function xmGiftSanta(w, sl, dt, g) {
+    if (!w.fx) return;
+    const cell = w.cell;
+    const bp = BOTPOS;
+    const botOk = bp.ok && performance.now() - bp.at < 600 && curId === 'xmas';
+    if (GIFT.state === 'wait') {
+      GIFT.t -= dt;
+      if (GIFT.t > 0) return;
+      if (FB.mode === 'inside') FB.insideT = 0; // gọi bot ra khỏi nhà
+      if (!botOk || bp.y0 < 12 * cell || FB.mode === 'sweep' || FB.next === 'sweep' || PILE.need) {
+        GIFT.t = 4;
+        return;
+      }
+      GIFT.state = 'approach';
+      GIFT.appT = 0;
+      GIFT.lock = true;
+      GIFT.script = pick(GIFT_SCRIPTS);
+      GIFT.step = 0;
+      GIFT.stepT = 0;
+      GIFT.item = pick(GIFT_ITEMS);
+      const bcx0 = (bp.x0 + bp.x1 + bp.bs) / 2 / cell;
+      GIFT.side = bcx0 < g.C / 2 ? 1 : -1; // đậu về phía rộng hơn
+      GIFT.dir = Math.sign(bcx0 + GIFT.side * 15 - sl.x) || 1;
+      GIFT.wp = 1;
+      botEmo('surprised', 2.2);
+      botSay(pick(['Ơ, ông già Noel kìa!', 'Ai bay tới vậy ta?', 'Ông già Noel!!']), 2.2);
+    }
+    if (!botOk) {
+      xmGiftEnd();
+      return;
+    }
+    const bcx = (bp.x0 + bp.x1 + bp.bs) / 2 / cell;
+    const btop = bp.y0 / cell;
+    const tx = bcx + GIFT.side * 15;
+    const ty = Math.max(7, btop - 4);
+    GIFT.santaPx = g.sp.x * cell;
+    GIFT.sp = { x: Math.round(g.sp.x), y: Math.round(g.sp.y), tx: Math.round(tx), ty: Math.round(ty) }; // gỡ lỗi
+    if (GIFT.state === 'approach') {
+      GIFT.appT += dt;
+      // 2 chặng: tới điểm trước chỗ hẹn, rồi bay thẳng ngang qua một đoạn bằng chiều dài đoàn
+      // để chiếc xe (đi sau cùng) dừng đúng cạnh bot.
+      const w1 = { x: tx - GIFT.dir * 18, y: ty };
+      const w2 = { x: tx + GIFT.dir * (g.DS + 2), y: ty };
+      let arrive = false;
+      if (GIFT.wp !== 2) {
+        GIFT.target = w1;
+        if (Math.hypot(sl.x - w1.x, sl.y - w1.y) < 5) GIFT.wp = 2;
+      } else {
+        GIFT.target = w2;
+        arrive = Math.hypot(sl.x - w2.x, sl.y - w2.y) < 3 || (Math.abs(g.sp.x - tx) < 3 && Math.abs(g.sp.y - ty) < 3);
+      }
+      if (!arrive && GIFT.appT > 30) {
+        // Bay mãi chưa tới (cửa sổ hẹp, bị kẹt vòng): đặt thẳng đoàn xe vào chỗ hẹn.
+        sl.x = w2.x;
+        sl.y = w2.y;
+        sl.a = GIFT.dir > 0 ? 0 : Math.PI;
+        sl.path = [];
+        for (let d = g.DS + 14; d >= 0; d -= 0.5) sl.path.push({ x: sl.x - GIFT.dir * d, y: sl.y });
+        arrive = true;
+      }
+      if (arrive) {
+        GIFT.state = 'talk';
+        GIFT.hold = true;
+        GIFT.target = null;
+        GIFT.stepT = 0;
+      }
+      return;
+    }
+    if (GIFT.state !== 'talk') return;
+    const st = GIFT.script[GIFT.step];
+    if (!st) {
+      xmGiftEnd();
+      return;
+    }
+    if (GIFT.stepT === 0) {
+      if (st[0] === 's') {
+        sl.sayText = st[1];
+        sl.sayT = 2.9;
+        if (st[1].includes('Hô hô hô') && !xmSfxBusy()) xmSfx('ho');
+      } else if (st[0] === 'b') {
+        botSay(st[1], 2.9);
+        botEmo(st[2] || 'happy', 3);
+      } else if (st[0] === 'drop') {
+        GIFT.box = { x: g.sp.x * cell, y: (g.sy + 6) * cell, vy: -60, landed: false, landT: 0, s: Math.round(bp.bs * 1.7) };
+        botEmo('surprised', 1.8);
+        if (!xmSfxBusy()) xmSfx('ring');
+      } else if (st[0] === 'open') {
+        const b = GIFT.box;
+        if (b) {
+          for (let i = 0; i < 60; i++)
+            GIFT.conf.push({ x: b.x + b.s / 2, y: b.y, vx: rnd(-170, 170), vy: rnd(-300, -90), a: 1.6, r: rnd(3, 6), c: pick(['#ff4d5e', '#ffd34d', '#4dc3ff', '#7dff8a', '#ff8af0', '#ffffff']), rot: rnd(0, 6) });
+        }
+        GIFT.box = null;
+        botSay('Woa! ' + GIFT.item, 3.4);
+        botEmo('love', 3.6);
+        bot.poke = true;
+      }
+    }
+    GIFT.stepT += dt;
+    let dur = 3.1;
+    if (st[0] === 'drop') dur = GIFT.box && GIFT.box.landed ? 99 : 99;
+    if (st[0] === 'drop' && GIFT.box && GIFT.box.landed && GIFT.box.landT > 0.9) dur = 0;
+    if (st[0] === 'open') dur = 3.6;
+    if (GIFT.stepT >= dur || (st[0] === 'drop' && GIFT.stepT > 8)) {
+      GIFT.step++;
+      GIFT.stepT = 0;
+      if (GIFT.step >= GIFT.script.length) xmGiftEnd();
+    }
+  }
+
+  // Hộp quà rơi + giấy màu (đơn vị px, vẽ ở lớp trên cùng cạnh bot).
+  function xmGiftDraw(w, dt) {
+    const ctx = w.ctx;
+    const b = GIFT.box;
+    const bp = BOTPOS;
+    if (b) {
+      const S = b.s;
+      const tx = GIFT.side > 0 ? bp.x1 + bp.bs * 1.5 : bp.x0 - S - bp.bs * 0.5;
+      const ground = bp.y0 + bp.bs * 5 - S;
+      if (!b.landed) {
+        b.vy += 520 * dt;
+        b.y += b.vy * dt;
+        b.x += (tx - b.x) * Math.min(1, dt * 2.5);
+        rglow(ctx, b.x + S / 2, b.y + S / 2, S * 1.6, '#ffe08a', 0.35);
+        if (b.y >= ground) {
+          b.y = ground;
+          b.landed = true;
+          bot.poke = true; // bot nhảy cẫng lên
+          botEmo('love', 2.5);
+        }
+      } else {
+        b.landT += dt;
+        b.x = tx;
+        b.y = ground;
+      }
+      // Thân hộp đỏ, ruy băng vàng chữ thập, nơ trên nắp.
+      ctx.fillStyle = '#d62f3a';
+      ctx.fillRect(b.x, b.y, S, S);
+      ctx.fillStyle = '#a81f2a';
+      ctx.fillRect(b.x, b.y, S, S * 0.22);
+      ctx.fillStyle = '#ffd34d';
+      ctx.fillRect(b.x + S * 0.42, b.y, S * 0.16, S);
+      ctx.fillRect(b.x, b.y + S * 0.42, S, S * 0.16);
+      ctx.fillRect(b.x + S * 0.2, b.y - S * 0.22, S * 0.24, S * 0.22);
+      ctx.fillRect(b.x + S * 0.56, b.y - S * 0.22, S * 0.24, S * 0.22);
+    }
+    const C = GIFT.conf;
+    for (let i = C.length - 1; i >= 0; i--) {
+      const q = C[i];
+      q.vy += 380 * dt;
+      q.vx *= 1 - dt * 0.8;
+      q.x += q.vx * dt;
+      q.y += q.vy * dt;
+      q.rot += dt * 8;
+      q.a -= dt * 0.8;
+      if (q.a <= 0) {
+        C.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = Math.min(1, q.a);
+      ctx.fillStyle = q.c;
+      ctx.fillRect(q.x, q.y, q.r, q.r * (0.4 + 0.6 * Math.abs(Math.sin(q.rot))));
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------------------------------------- custom: nhà của bot + cây thông có đèn */
+  // Đặt ở đầu phải mép trên ô nhập chat (chỗ duy nhất luôn nhìn thấy, không bị khung nào che).
+  // Nhà gỗ mái đỏ, ống khói có khói, cửa sổ sáng đèn; theme Giáng Sinh thì mái phủ tuyết và
+  // có dây đèn màu. Lâu lâu bot đi vào nhà, cửa mở, khói bốc nhiều hơn, một lúc sau mới ra.
+  const HOUSE_ROWS = ['       C ', '    R  C ', '   RRR C ', '  RRRRRC ', ' RRRRRRR ', 'RRRRRRRRR', ' WGGWWWW ', ' WGGWDDW ', ' WWWWDDW '];
+  const HOUSE_PAL = {
+    C: ['#7a4a3a', '#4e2e24', '#'],
+    R: ['#a3352a', '#7a2219', '^'],
+    W: ['#b07a45', '#8a5a30', '='],
+    G: ['#ffd66b', '#fff3c2', '+'],
+    D: ['#5a3216', '#3a1f0c', ''],
+  };
+  const TREE_ROWS = ['  *  ', '  T  ', ' LTL ', 'TTLTT', ' TLT ', 'LTTTL', '  K  '];
+  const HOUSE = { on: false, left: 0, x: 0, y: 0, hs: 10, doorX: 0, doorT: 0, smoke: [], trees: [], smokeT: 0 };
+  window.__pxtHouse = HOUSE;
+
+  function houseLayout(w) {
+    const b = layout.box;
+    HOUSE.on = !!b && cfg.house !== false && cfg.bot !== false && curId !== 'off' && b.width > 300;
+    if (!HOUSE.on) return;
+    const bs = clamp(Math.round(w.cell * 0.82), 9, 12);
+    const hs = Math.round(bs * 0.9);
+    const ts = Math.round(bs * 0.75);
+    HOUSE.hs = hs;
+    HOUSE.x = b.right - 12 - 9 * hs;
+    HOUSE.y = b.top - HOUSE_ROWS.length * hs;
+    HOUSE.doorX = HOUSE.x + 6 * hs;
+    HOUSE.trees = [{ x: HOUSE.x - 6 * ts, s: ts }];
+    if (b.width > 520) HOUSE.trees.push({ x: HOUSE.x - 12 * ts, s: Math.round(ts * 0.85) });
+    HOUSE.left = Math.min(...HOUSE.trees.map((t) => t.x)) - 6;
+  }
+
+  function houseDraw(w, dt) {
+    if (!HOUSE.on) return;
+    const ctx = w.ctx;
+    const b = layout.box;
+    const t = w.t;
+    const xmas = curId === 'xmas';
+    const inside = FB.mode === 'inside';
+    // Cây thông có đèn nhấp nháy.
+    const LC = ['#ff4d5e', '#ffd34d', '#4dc3ff', '#7dff8a', '#ff8af0'];
+    for (const tr of HOUSE.trees) {
+      const s = tr.s;
+      const ty = b.top - TREE_ROWS.length * s;
+      let li = 0;
+      for (let j = 0; j < TREE_ROWS.length; j++)
+        for (let i = 0; i < 5; i++) {
+          const ch = TREE_ROWS[j][i];
+          const x = tr.x + i * s;
+          const y = ty + j * s;
+          if (ch === 'T') w.tileAt(x, y, s, i > 2 ? '#17543a' : '#1f6b45', '#2f8f5c', '^');
+          else if (ch === 'K') w.tileAt(x, y, s, '#5a3a22', null, '');
+          else if (ch === '*') {
+            rglow(ctx, x + s / 2, y + s / 2, s * 2, '#ffd34d', 0.35 + 0.15 * Math.sin(t * 2 + tr.x));
+            w.tileAt(x, y, s, '#ffd34d', '#fff6c2', '*');
+          } else if (ch === 'L') {
+            const on = Math.sin(t * 2.6 + li * 1.7 + tr.x) > -0.3;
+            const c = LC[(li + Math.floor(t * 0.7)) % LC.length];
+            w.tileAt(x, y, s, '#1f6b45', null, '');
+            if (on) {
+              rglow(ctx, x + s / 2, y + s / 2, s * 1.3, c, 0.35);
+              ctx.fillStyle = c;
+              ctx.beginPath();
+              ctx.arc(x + s / 2, y + s / 2, s * 0.32, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            li++;
+          }
+        }
+    }
+    // Nhà.
+    const hs = HOUSE.hs;
+    const X = HOUSE.x;
+    const Y = HOUSE.y;
+    HOUSE.doorT = Math.max(0, HOUSE.doorT - dt);
+    // Cửa sổ sáng: sáng hơn khi bot ở trong nhà.
+    rglow(ctx, X + 2.5 * hs, Y + 7 * hs, hs * (inside ? 3.4 : 2.4), '#ffd66b', inside ? 0.55 : 0.32);
+    for (let j = 0; j < HOUSE_ROWS.length; j++) {
+      const row = HOUSE_ROWS[j];
+      let first = -1;
+      let last = -1;
+      for (let i = 0; i < row.length; i++) if (row[i] === 'R') { if (first < 0) first = i; last = i; }
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        const p = HOUSE_PAL[ch];
+        if (!p) continue;
+        let bg = p[0];
+        let fg = p[1];
+        let gl = p[2];
+        if (ch === 'D' && HOUSE.doorT > 0) {
+          bg = '#140a05';
+          gl = '';
+        }
+        if (xmas && ((ch === 'R' && (i === first || i === last || j === 1)) || (ch === 'C' && j === 0))) {
+          bg = '#f4f8ff';
+          fg = '#c9d8ee';
+          gl = '*';
+        }
+        w.tileAt(X + i * hs, Y + j * hs, hs, bg, fg, gl);
+      }
+    }
+    // Núm cửa + vòng nguyệt quế (Giáng Sinh).
+    ctx.fillStyle = '#ffd34d';
+    ctx.fillRect(X + 5.25 * hs, Y + 8 * hs, hs * 0.2, hs * 0.2);
+    if (xmas) {
+      ctx.strokeStyle = '#2f8a4a';
+      ctx.lineWidth = hs * 0.22;
+      ctx.beginPath();
+      ctx.arc(X + 6 * hs, Y + 7.5 * hs, hs * 0.38, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#d62f3a';
+      ctx.fillRect(X + 5.9 * hs, Y + 7.75 * hs, hs * 0.2, hs * 0.2);
+      // Dây đèn màu dọc mép mái.
+      for (let i = 0; i < 9; i++) {
+        if (Math.sin(t * 3 + i * 1.3) < -0.2) continue;
+        const c = LC[(i + Math.floor(t)) % LC.length];
+        rglow(ctx, X + (i + 0.5) * hs, Y + 6 * hs, hs * 0.9, c, 0.4);
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.arc(X + (i + 0.5) * hs, Y + 6 * hs + hs * 0.05, hs * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // Khói ống khói: nhiều hơn khi bot ở trong nhà (đang đốt lò sưởi).
+    HOUSE.smokeT -= dt;
+    if (HOUSE.smokeT <= 0) {
+      HOUSE.smokeT = inside ? rnd(0.18, 0.35) : rnd(0.6, 1.1);
+      HOUSE.smoke.push({ x: X + 7.5 * hs, y: Y, r: hs * 0.35, vx: rnd(-4, 12), vy: rnd(-24, -14), a: 0.55 });
+    }
+    for (let i = HOUSE.smoke.length - 1; i >= 0; i--) {
+      const q = HOUSE.smoke[i];
+      q.x += (q.vx + Math.sin(t * 1.3 + i) * 4) * dt;
+      q.y += q.vy * dt;
+      q.r += dt * hs * 0.45;
+      q.a -= dt * 0.18;
+      if (q.a <= 0 || q.y < 0) {
+        HOUSE.smoke.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = q.a;
+      ctx.fillStyle = '#d9dee8';
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, q.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Ô "Nhà của bot" trong bảng Alt+T.
+  const _buildPanel6 = buildPanel;
+  buildPanel = function () {
+    _buildPanel6();
+    try {
+      const ctl = panel.querySelector('.ctl');
+      if (ctl) ctl.append(h('label', null, h('input', { type: 'checkbox', checked: cfg.house !== false, onchange: (e) => { cfg.house = e.target.checked; if (!cfg.house && FB.mode === 'inside') FB.insideT = 0; save(); } }), 'Nhà của bot'));
+    } catch (e) {
+      /* bỏ qua */
+    }
+  };
+
+  /* ------------------------------------------------ custom: bot Codex chơi với bot Claude */
+  // Nhân vật pixel tự vẽ (không dùng logo thật): robot thân xám có ăng-ten, mặt là màn hình
+  // hiện ">_". Tự đi dạo; lâu lâu rủ bot Claude chơi: nói chuyện, đuổi bắt, đập tay, ném tuyết
+  // (theme Giáng Sinh). Chỉ chơi chung khi bot Claude đang "đi tự do". Tắt bằng ô "Bot Codex".
+  // Gỡ lỗi: __pxtPlay.t = 0 -> chơi ngay; __pxtPlay.force = 'chase' | 'talk' | 'five' | 'snow'.
+  const CX_ROWS = {
+    a: ['    a    ', ' FFFFFFF ', ' FSSSSSF ', ' FSSSSSF ', ' FFFFFFF ', '  L   L  '],
+    b: ['    a    ', ' FFFFFFF ', ' FSSSSSF ', ' FSSSSSF ', ' FFFFFFF ', ' L     L '],
+    hop: ['    a    ', 'AFFFFFFFA', ' FSSSSSF ', ' FSSSSSF ', ' FFFFFFF ', '  L   L  '],
+  };
+  const CX_PAL = {
+    a: ['#7ee787', '#3fb950', ''],
+    F: ['#c9d1d9', '#8b949e', ''],
+    S: ['#0d1117', null, ''],
+    L: ['#6e7681', null, ''],
+    A: ['#c9d1d9', '#8b949e', ''],
+  };
+  const CX_FACES = { '': '>_', happy: '^_^', love: '♥_♥', surprised: 'O_O', sleepy: '-_-', think: '>..', sad: 'T_T' };
+  const CX = { x: null, y: null, tx: 0, ty: 0, mode: 'idle', timer: 2, step: 0, hopT: 0, look: -1, emo: '', emoT: 0, text: '', sayT: 0, speed: 80 };
+  const PLAY = { t: rnd(12, 25), act: null, actT: 0, step: 0, stepT: 0, script: null, chaser: 'cx', catches: 0, balls: [], force: null };
+  window.__pxtCodex = CX;
+  window.__pxtPlay = PLAY;
+  const PLAY_TALKS = [
+    [['c', 'Ê Codex, nay bạn code gì đó?'], ['x', 'Đang refactor nè, rối quá!'], ['c', 'Để tui phụ một tay!'], ['x', 'Hai đứa mình là nhất!', 'happy']],
+    [['x', 'Claude ơi, bug này khó quá...', 'sad'], ['c', 'Đọc log chưa? Coi stack trace nè!'], ['x', 'A! Thấy rồi, cảm ơn nha!', 'happy']],
+    [['x', 'Hôm nay bạn viết bao nhiêu dòng?'], ['c', 'Hơn 9000 dòng luôn!', 'happy'], ['x', 'Ghê vậy!', 'surprised']],
+    [['c', 'Tui đoán được bạn đang nghĩ gì!'], ['x', 'Thật hả? Gì nè?', 'think'], ['c', 'Cà phê!'], ['x', 'Trúng phóc!', 'surprised']],
+    [['x', 'Giáng Sinh bạn muốn quà gì?'], ['c', 'Một ngày không có bug!', 'love'], ['x', 'Ước mơ đẹp ghê...', 'happy']],
+    [['c', 'Chơi đuổi bắt hông?'], ['x', 'Chơi! Để tui đuổi trước!', 'happy']],
+  ];
+
+  function cxSay(text, dur = 2.8) {
+    CX.text = text;
+    CX.sayT = dur;
+  }
+  function cxEmo(kind, dur = 2.5) {
+    CX.emo = kind;
+    CX.emoT = dur;
+  }
+
+  function cxFrame(w, dt) {
+    const b = layout.box;
+    const on = cfg.codex !== false && cfg.bot !== false && curId !== 'off';
+    if (!on) {
+      CX.x = null;
+      PLAY.act = null;
+      return;
+    }
+    const bs = clamp(Math.round(w.cell * 0.82), 9, 12);
+    const CW = 9 * bs;
+    const CH = 6 * bs;
+    const W = 11 * bs;
+    const minX = 8;
+    const maxX = Math.max(minX, w.w - CW - 8);
+    const minY = 44 + bs * 4;
+    const maxY = Math.max(minY, w.h - CH - 8);
+    const perchY = b ? b.top - CH - 3 : maxY;
+    if (CX.x == null) {
+      CX.x = b ? b.left + 30 : minX + 40;
+      CX.y = perchY;
+    }
+    const sp = cfg.speed || 1;
+    const claudeFree = cfg.botFree !== false && FB.x != null && FB.mode !== 'inside';
+    const busyClaude = GIFT.lock || FB.mode === 'sweep' || FB.next === 'sweep' || FB.next === 'home' || !claudeFree;
+    // Tâm của 2 bot (px).
+    const ccx = (FB.x || 0) + W / 2;
+    const ccy = (FB.y || 0) + (5 * bs) / 2;
+    const xcx = CX.x + CW / 2;
+    const xcy = CX.y + CH / 2;
+    const dist = Math.hypot(ccx - xcx, ccy - xcy);
+    const walkTo = (x, y, speed) => {
+      CX.mode = 'walk';
+      CX.tx = clamp(x, minX, maxX);
+      CX.ty = clamp(y, minY, Math.max(maxY, perchY));
+      CX.speed = speed;
+    };
+    const claudeTo = (x, y) => {
+      FB.mode = 'walk';
+      FB.next = null;
+      FB.perch = false;
+      FB.tx = x;
+      FB.ty = y;
+      FB.timer = 1;
+    };
+
+    // ---------------- điều phối trò chơi
+    if (PLAY.act && busyClaude) {
+      PLAY.act = null; // bot Claude bận việc khác: dừng chơi
+      PLAY.t = rnd(15, 30);
+    }
+    if (!PLAY.act) {
+      PLAY.t -= dt;
+      if (PLAY.t <= 0 && !busyClaude && FB.mode !== 'hop') {
+        const acts = ['talk', 'chase', 'five'];
+        if (curId === 'xmas') acts.push('snow');
+        PLAY.act = PLAY.force || pick(acts);
+        PLAY.force = null;
+        PLAY.actT = 0;
+        PLAY.step = 0;
+        PLAY.stepT = 0;
+        PLAY.catches = 0;
+        PLAY.chaser = Math.random() < 0.5 ? 'cx' : 'c';
+        PLAY.script = pick(PLAY_TALKS);
+        if (PLAY.act === 'chase') PLAY.script = null;
+      } else if (CX.mode === 'idle' && CX.timer <= 0) {
+        // Đi dạo một mình.
+        const r = Math.random();
+        if (r < 0.45) walkTo(rnd(minX, maxX), rnd(minY, maxY), 70);
+        else if (r < 0.7 && b) walkTo(rnd(b.left + 12, Math.max(b.left + 12, b.right - CW - 12)), perchY, 70);
+        else if (r < 0.85) {
+          CX.mode = 'hop';
+          CX.hopT = 0;
+        }
+        CX.timer = rnd(2, 5);
+      }
+    }
+    if (PLAY.act) {
+      PLAY.actT += dt;
+      FB.timer = Math.max(FB.timer, 0.5); // bot Claude không tự đi lung tung khi đang chơi
+      const side = xcx < ccx ? -1 : 1; // Codex đứng phía nào của Claude
+      const besideX = side < 0 ? FB.x - CW - 14 : FB.x + W + 14;
+      const besideY = FB.y + 5 * bs - CH;
+      if (PLAY.act === 'talk' || PLAY.act === 'five') {
+        if (PLAY.step === 0) {
+          // Codex đi tới cạnh Claude.
+          if (CX.mode !== 'walk' || Math.abs(CX.tx - besideX) > 20) walkTo(besideX, besideY, 95);
+          if (Math.abs(CX.x - besideX) < 6 && Math.abs(CX.y - besideY) < 6) {
+            CX.mode = 'idle';
+            PLAY.step = 1;
+            PLAY.stepT = 0;
+          }
+          if (FB.mode === 'walk') FB.mode = 'idle';
+          if (PLAY.actT > 15) PLAY.step = 1;
+        } else if (PLAY.act === 'talk') {
+          CX.look = ccx > xcx ? 1 : -1;
+          bot.look = xcx > ccx ? 1 : -1;
+          const ln = PLAY.script[PLAY.step - 1];
+          if (!ln) {
+            PLAY.act = null;
+            PLAY.t = rnd(25, 50);
+            if (PLAY.script === PLAY_TALKS[PLAY_TALKS.length - 1]) {
+              PLAY.t = 0.5;
+              PLAY.force = 'chase';
+            }
+          } else {
+            if (PLAY.stepT === 0) {
+              if (ln[0] === 'c') {
+                botSay(ln[1], 2.8);
+                botEmo(ln[2] || 'happy', 2.8);
+              } else {
+                cxSay(ln[1], 2.8);
+                cxEmo(ln[2] || '', 2.8);
+              }
+            }
+            PLAY.stepT += dt;
+            if (PLAY.stepT > 3) {
+              PLAY.step++;
+              PLAY.stepT = 0;
+            }
+          }
+        } else {
+          // Đập tay: cùng nhảy lên, tim bay.
+          if (PLAY.stepT === 0) {
+            CX.mode = 'hop';
+            CX.hopT = 0;
+            bot.poke = true;
+            botEmo('love', 2.5);
+            cxEmo('love', 2.5);
+            botSay(pick(['Đập tay nè!', 'Yeah!', 'Hai đứa mình đỉnh!']), 2.2);
+            cxSay(pick(['Bốp!', 'Yeah!', 'Đỉnh!']), 2.2);
+          }
+          PLAY.stepT += dt;
+          if (PLAY.stepT > 2.6) {
+            PLAY.act = null;
+            PLAY.t = rnd(25, 50);
+          }
+        }
+      } else if (PLAY.act === 'chase') {
+        // Đuổi bắt: kẻ đuổi chạy nhanh hơn chút; bắt được thì nhảy, đổi vai; 2 lần là nghỉ.
+        if (PLAY.stepT > 0) {
+          PLAY.stepT -= dt; // đang ăn mừng/đổi vai
+        } else if (PLAY.chaser === 'cx') {
+          walkTo(ccx - CW / 2, ccy - CH / 2, 115);
+          if (FB.mode !== 'walk' || Math.hypot(FB.tx - FB.x, FB.ty - FB.y) < 20) claudeTo(rnd(minX, Math.max(minX, w.w - W - 8)), rnd(minY, maxY));
+        } else {
+          claudeTo(xcx - W / 2, xcy - (5 * bs) / 2);
+          if (CX.mode !== 'walk' || Math.hypot(CX.tx - CX.x, CX.ty - CX.y) < 20) walkTo(rnd(minX, maxX), rnd(minY, maxY), 70);
+        }
+        if (PLAY.stepT <= 0 && dist < W * 0.75 && PLAY.actT > 1) {
+          PLAY.catches++;
+          const cxWon = PLAY.chaser === 'cx';
+          (cxWon ? cxSay : botSay)(pick(['Bắt được rồi!', 'Hehe, chạy đâu!', 'Tới lượt bạn!']), 2);
+          (cxWon ? botSay : cxSay)(pick(['Á!', 'Huhu bị bắt!', 'Không công bằng!']), 2);
+          if (cxWon) botEmo('surprised', 2);
+          else cxEmo('surprised', 2);
+          (cxWon ? cxEmo : botEmo)('happy', 2);
+          CX.mode = 'hop';
+          CX.hopT = 0;
+          bot.poke = true;
+          FB.mode = 'idle';
+          PLAY.chaser = cxWon ? 'c' : 'cx';
+          PLAY.stepT = 2.2;
+          if (PLAY.catches >= 2) {
+            PLAY.act = null;
+            PLAY.t = rnd(30, 60);
+          }
+        }
+        if (PLAY.act && PLAY.actT > 25) {
+          PLAY.act = null;
+          PLAY.t = rnd(30, 60);
+          FB.mode = 'idle';
+        }
+      } else if (PLAY.act === 'snow') {
+        // Ném tuyết: đứng cách nhau, ném qua lại 2 lượt; trúng thì tuyết văng + giật mình.
+        const gapX = FB.x + W / 2 > w.w / 2 ? FB.x - CW - 190 : FB.x + W + 190;
+        if (PLAY.step === 0) {
+          if (CX.mode !== 'walk' || Math.abs(CX.tx - gapX) > 20) walkTo(gapX, FB.y + 5 * bs - CH, 95);
+          if (FB.mode === 'walk') FB.mode = 'idle';
+          if ((Math.abs(CX.x - clamp(gapX, minX, maxX)) < 6 && Math.abs(CX.y - (FB.y + 5 * bs - CH)) < 8) || PLAY.actT > 15) {
+            CX.mode = 'idle';
+            PLAY.step = 1;
+            PLAY.stepT = 0;
+            cxSay('Đỡ nè!', 1.6);
+          }
+        } else {
+          CX.look = ccx > xcx ? 1 : -1;
+          bot.look = xcx > ccx ? 1 : -1;
+          PLAY.stepT += dt;
+          if (PLAY.stepT > 1.2 && PLAY.balls.length === 0 && PLAY.step <= 4) {
+            const fromCx = PLAY.step % 2 === 1;
+            const sx = fromCx ? xcx : ccx;
+            const sy = (fromCx ? CX.y : FB.y) + bs;
+            const ex = fromCx ? ccx : xcx;
+            const T = 0.9;
+            PLAY.balls.push({ x: sx, y: sy, vx: (ex - sx) / T, vy: -260, to: fromCx ? 'c' : 'cx', t: 0, T });
+            if (!fromCx) botSay(pick(['Trả nè!', 'Tới lượt tui!', 'Hứng nè!']), 1.6);
+            PLAY.step++;
+            PLAY.stepT = 0;
+          }
+          if (PLAY.step > 4 && PLAY.balls.length === 0 && PLAY.stepT > 1.5) {
+            botSay('Vui ghê!', 2);
+            cxSay('Mai chơi tiếp!', 2);
+            botEmo('happy', 2.5);
+            cxEmo('happy', 2.5);
+            PLAY.act = null;
+            PLAY.t = rnd(30, 60);
+          }
+        }
+        if (PLAY.act && PLAY.actT > 30) {
+          PLAY.act = null;
+          PLAY.t = rnd(30, 60);
+        }
+      }
+    }
+
+    // ---------------- di chuyển Codex
+    CX.timer -= dt;
+    CX.emoT -= dt;
+    let lift = 0;
+    let rows = CX_ROWS.a;
+    if (CX.mode === 'walk') {
+      const dx = CX.tx - CX.x;
+      const dy = CX.ty - CX.y;
+      const dd = Math.hypot(dx, dy);
+      const v = CX.speed * sp * dt;
+      if (Math.abs(dx) > 2) CX.look = dx > 0 ? 1 : -1;
+      if (dd <= v) {
+        CX.x = CX.tx;
+        CX.y = CX.ty;
+        CX.mode = 'idle';
+      } else {
+        CX.x += (dx / dd) * v;
+        CX.y += (dy / dd) * v;
+      }
+      CX.step += dt;
+      if (Math.abs(dy) > Math.abs(dx) * 0.6) {
+        rows = CX_ROWS.hop;
+        lift = Math.sin(CX.step * 10) * bs * 0.25;
+      } else rows = Math.floor(CX.step / 0.14) % 2 ? CX_ROWS.b : CX_ROWS.a;
+    } else if (CX.mode === 'hop') {
+      CX.hopT += dt;
+      lift = Math.sin(Math.PI * Math.min(1, CX.hopT / 0.5)) * bs * 2;
+      rows = CX.hopT < 0.4 ? CX_ROWS.hop : CX_ROWS.a;
+      if (CX.hopT >= 0.5) CX.mode = 'idle';
+    } else {
+      lift = (Math.sin(w.t * 3 + 1.3) + 1) * 0.6;
+      // Đậu trên ô chat thì bám theo ô chat.
+      if (b && Math.abs(CX.y - perchY) < 30 && CX.x > b.left - CW && CX.x < b.right) CX.y = perchY;
+    }
+    CX.x = clamp(CX.x, minX, maxX);
+    CX.y = clamp(CX.y, minY, Math.max(maxY, perchY));
+    // Bot Claude đến gần thì Codex cũng nhảy chào (khi không chơi).
+    const x0 = Math.round(CX.x);
+    const y0 = Math.round(CX.y - lift);
+    const ctx = w.ctx;
+    ctx.globalAlpha = 0.2 * (1 - Math.min(1, lift / (bs * 3)));
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(x0 + CW / 2, Math.round(CX.y) + CH + 2, CW * 0.36, bs * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    for (let j = 0; j < rows.length; j++)
+      for (let i = 0; i < 9; i++) {
+        const p = CX_PAL[rows[j][i]];
+        if (p) w.tileAt(x0 + i * bs, y0 + j * bs, bs, p[0], p[1], p[2]);
+      }
+    // Mặt trên màn hình.
+    const emo = CX.emoT > 0 ? CX.emo : RAIN.on ? 'think' : '';
+    let face = CX_FACES[emo] || '>_';
+    if (!emo && Math.floor(w.t * 2) % 2) face = '> ';
+    ctx.save();
+    ctx.font = `800 ${Math.round(bs * 1.15)}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = emo === 'love' ? '#ff6b9a' : '#7ee787';
+    ctx.fillText(face, x0 + 4.5 * bs + CX.look * bs * 0.4, y0 + 3 * bs);
+    ctx.restore();
+    // Nón yêu tinh xanh (theme Giáng Sinh).
+    if (curId === 'xmas') {
+      const hx = x0 + (CX.look < 0 ? 5 : 2) * bs;
+      for (let k = 0; k < 4; k++) w.tileAt(hx + k * bs * (CX.look < 0 ? -0.6 : 0.6), y0 - (k + 0.2) * bs * 0.9, bs * (1.1 - k * 0.15), '#2f8a4a', null, '');
+      w.tileAt(x0 + 1 * bs, y0 + bs * 0.1, bs, '#d62f3a', null, '');
+      w.tileAt(x0 + 7 * bs, y0 + bs * 0.1, bs, '#d62f3a', null, '');
+      w.tileAt(hx + 3.4 * bs * (CX.look < 0 ? -0.6 : 0.6), y0 - 3.8 * bs, bs * 0.7, '#ffffff', null, '');
+    }
+    // Bong bóng thoại của Codex (nền trắng, chữ xanh lá).
+    if (CX.sayT > 0) {
+      CX.sayT -= dt;
+      xmBubble(w, x0 + CW / 2, y0 - (curId === 'xmas' ? 4 * bs : bs * 0.5) - 4, CX.text, Math.min(1, CX.sayT / 0.35), '#3a3f47', '#1a7f37');
+    }
+    // Banh tuyết đang bay.
+    for (let i = PLAY.balls.length - 1; i >= 0; i--) {
+      const q = PLAY.balls[i];
+      q.t += dt;
+      q.vy += 580 * dt;
+      q.x += q.vx * dt;
+      q.y += q.vy * dt;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, bs * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      if (q.t >= q.T) {
+        for (let k = 0; k < 14; k++) PILE.puffs.push({ x: q.x, y: q.y, vx: rnd(-90, 90), vy: rnd(-160, -40), a: 1, r: rnd(2, 4) });
+        if (q.to === 'c') {
+          botEmo('surprised', 1.6);
+          botSay(pick(['Á lạnh!', 'Trúng rồi!', 'Hự!']), 1.5);
+        } else {
+          cxEmo('surprised', 1.6);
+          cxSay(pick(['Á!', 'Lạnh quá!', 'Ui da!']), 1.5);
+        }
+        PLAY.balls.splice(i, 1);
+      }
+    }
+  }
+
+  // Ô "Bot Codex" trong bảng Alt+T.
+  const _buildPanel7 = buildPanel;
+  buildPanel = function () {
+    _buildPanel7();
+    try {
+      const ctl = panel.querySelector('.ctl');
+      if (ctl) ctl.append(h('label', null, h('input', { type: 'checkbox', checked: cfg.codex !== false, onchange: (e) => { cfg.codex = e.target.checked; save(); } }), 'Bot Codex'));
+    } catch (e) {
+      /* bỏ qua */
+    }
+  };

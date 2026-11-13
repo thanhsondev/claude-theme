@@ -55,6 +55,10 @@ Launcher tự ghép file này vào script chính. Khi dán tay thì phần này 
 - **Nhạc 8-bit 5 bài** (Jingle Bells, We Wish You a Merry Christmas, Deck the Halls, Silent Night, Joy to the World): hàng "Nhạc:" trong `Alt + T` để chọn bài hoặc phát lần lượt, nút "Bài sau", thanh âm lượng.
 - **Tuyết đọng trên ô chat:** tuyết rơi đọng thành đống trên mép ô nhập chat; dày quá thì bot vác chổi ra quét sạch.
 - **Nền tối sau chữ:** dải nền tối mờ sau cột chữ cho dễ đọc; mưa code nằm dưới dải này. Chỉnh độ đậm trong `Alt + T`.
+- **Ông già Noel tặng quà:** lâu lâu đoàn xe bay xuống đậu cạnh bot, hai bên nói chuyện, ông thả hộp quà, bot mở quà (giấy màu tung ra) rồi ông chào bay đi.
+- **Cảm xúc trên mặt bot:** mắt, miệng, má hồng đổi theo tâm trạng (vui, thương, ngạc nhiên, buồn ngủ, đang nghĩ, buồn), kèm biểu tượng ♪ ♥ ! ? z bay cạnh đầu.
+- **Nhà của bot:** nhà gỗ có ống khói, cửa sổ sáng đèn và 2 cây thông có đèn ở đầu phải ô chat; lâu lâu bot vào nhà nghỉ rồi ra. Tắt bằng ô "Nhà của bot".
+- **Bot Codex:** robot pixel tự vẽ (màn hình `>_`) đi chơi với bot Claude: nói chuyện, đuổi bắt, đập tay, ném tuyết. Tắt bằng ô "Bot Codex".
 - **Bot đi tự do và biết nói:** bot đi khắp cửa sổ, lâu lâu nói một câu trong bong bóng thoại (khi Claude bắt đầu hoặc làm xong task, khi bị chuột chọc, khi khuya...). Tắt bằng ô "Bot đi tự do" / "Bot nói chuyện" trong `Alt + T`.
 - **Mưa code khi Claude đang chạy task:** khi phiên đang mở có nút Dừng, code rơi phủ lên mọi theme, task xong thì tắt dần. Gỡ lỗi: `__pxtRain.force = true` / `false` / `null`.
 - **Tắt "Tự đổi ngày/đêm" một lần:** khi tuỳ chọn này bật, theme bị ép về Sakura hoặc Moonlit mỗi phút. Muốn dùng lại thì tick lại trong `Alt + T`.
